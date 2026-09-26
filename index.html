@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Molding Parameter</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="brand/npi-icon.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Molding Param">
+<meta name="theme-color" content="#eceef1">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <a href="#/" class="brand" aria-label="Molding Parameter – home">
+    <img class="toplogo" src="brand/npi-logo-compact.png" alt="New Gen NPI">
+    <span class="appname"><b>Molding Parameter</b><small>EXZONE · NPI team</small></span>
+  </a>
+  <span id="aiChip" class="chip"></span>
+</header>
+<main id="app"><p class="muted pad">Loading…</p></main>
+<div id="viewer" class="viewer" hidden>
+  <div class="vbar"><span id="vTitle"></span><span><button data-z="-1">−</button><button data-z="0">Fit</button><button data-z="1">+</button><button id="vClose">✕</button></span></div>
+  <div class="vbody" id="vBody"><img id="vImg" alt="Screen photo"></div>
+</div>
+<div id="toast" class="toast" hidden></div>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

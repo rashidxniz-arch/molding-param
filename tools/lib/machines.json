@@ -1,0 +1,499 @@
+[
+{
+"no": "MC01",
+"section": "Moulding 3",
+"maker": "HAITIAN",
+"model": "HTF 650X",
+"ton": "650T"
+},
+{
+"no": "MC02",
+"section": "Moulding 3",
+"maker": "HAITIAN",
+"model": "HTF900X",
+"ton": "900T"
+},
+{
+"no": "MC03",
+"section": "Moulding 3",
+"maker": "HAITIAN",
+"model": "HTF900X",
+"ton": "900T"
+},
+{
+"no": "MC04",
+"section": "Moulding 3",
+"maker": "HAITIAN",
+"model": "HTF900X",
+"ton": "900T"
+},
+{
+"no": "MC05",
+"section": "Moulding 3",
+"maker": "HAITIAN",
+"model": "HTF1000X",
+"ton": "1000T"
+},
+{
+"no": "MC06",
+"section": "Moulding 3",
+"maker": "HAITIAN",
+"model": "HTF 2000X",
+"ton": "2000T"
+},
+{
+"no": "MC07",
+"section": "Moulding 3",
+"maker": "HAITIAN",
+"model": "HTF 2800X",
+"ton": "2800T"
+},
+{
+"no": "MC08",
+"section": "Moulding 3",
+"maker": "HAITIAN",
+"model": "HTF 2800/3300X",
+"ton": "3300T"
+},
+{
+"no": "MC10",
+"section": "Moulding 3",
+"maker": "HAITIAN",
+"model": "MA14000",
+"ton": "1400T"
+},
+{
+"no": "MC11",
+"section": "Moulding 3",
+"maker": "TOSHIBA",
+"model": "IS650FAII59A",
+"ton": "650T"
+},
+{
+"no": "MC12",
+"section": "Moulding 3",
+"maker": "HAITIAN",
+"model": "HTF650X",
+"ton": "650T"
+},
+{
+"no": "MC13",
+"section": "Moulding 3",
+"maker": "JSW",
+"model": "450 E III",
+"ton": "450T"
+},
+{
+"no": "MC14",
+"section": "Moulding 3",
+"maker": "HAITIAN",
+"model": "HTF 450 X",
+"ton": "450T"
+},
+{
+"no": "MC15",
+"section": "Moulding 3",
+"maker": "TOSHIBA",
+"model": "IS 110A 1300DF",
+"ton": "1300T"
+},
+{
+"no": "MC16",
+"section": "Moulding 3",
+"maker": "YIZUMI",
+"model": "UN650A2",
+"ton": "650T"
+},
+{
+"no": "MC17",
+"section": "Moulding 3",
+"maker": "MITSUBISHI",
+"model": "FS360100ASE",
+"ton": "450T"
+},
+{
+"no": "AR02",
+"section": "Moulding 2",
+"maker": "HAITIAN",
+"model": "HTF86X",
+"ton": "86T"
+},
+{
+"no": "AR03",
+"section": "Moulding 2",
+"maker": "HAITIAN",
+"model": "HTF86X",
+"ton": "86T"
+},
+{
+"no": "AR04",
+"section": "Moulding 2",
+"maker": "HAITIAN",
+"model": "HTF86X",
+"ton": "86T"
+},
+{
+"no": "AR05",
+"section": "Moulding 2",
+"maker": "HAITIAN",
+"model": "HTF86X",
+"ton": "86T"
+},
+{
+"no": "AR06",
+"section": "Moulding 2",
+"maker": "HAITIAN",
+"model": "HTF120X",
+"ton": "120T"
+},
+{
+"no": "AR07",
+"section": "Moulding 2",
+"maker": "NISSEI",
+"model": "FN3000",
+"ton": "140T"
+},
+{
+"no": "AR08",
+"section": "Moulding 2",
+"maker": "MITSUBISHI",
+"model": "160MSV-10",
+"ton": "160T"
+},
+{
+"no": "AR09",
+"section": "Moulding 2",
+"maker": "NISSEI",
+"model": "ES400-5E",
+"ton": "40T"
+},
+{
+"no": "AR10",
+"section": "Moulding 2",
+"maker": "SUMITOMO",
+"model": "SG50 M.H",
+"ton": "50T"
+},
+{
+"no": "AR11",
+"section": "Moulding 2",
+"maker": "SUMITOMO",
+"model": "SD75 M.H",
+"ton": "75T"
+},
+{
+"no": "AR12",
+"section": "Moulding 2",
+"maker": "NISSEI",
+"model": "FN2000",
+"ton": "110T"
+},
+{
+"no": "AR13",
+"section": "Moulding 2",
+"maker": "HAITIAN",
+"model": "HTF120X",
+"ton": "120T"
+},
+{
+"no": "AR14",
+"section": "Moulding 2",
+"maker": "JSW",
+"model": "J150 EIII",
+"ton": "150T"
+},
+{
+"no": "AR16",
+"section": "Moulding 2",
+"maker": "HAITIAN",
+"model": "IA2000/B-J",
+"ton": "200T"
+},
+{
+"no": "AR17",
+"section": "Moulding 2",
+"maker": "YAN HING",
+"model": "SP270",
+"ton": "270T"
+},
+{
+"no": "AR18",
+"section": "Moulding 2",
+"maker": "MITSUBISHI",
+"model": "290MSV-30",
+"ton": "290T"
+},
+{
+"no": "AR20",
+"section": "Moulding 2",
+"maker": "MITSUBISHI",
+"model": "290MSV-30",
+"ton": "290T"
+},
+{
+"no": "AR21",
+"section": "Moulding 2",
+"maker": "MITSUBISHI",
+"model": "290MSV-30",
+"ton": "290T"
+},
+{
+"no": "AR22",
+"section": "Moulding 2",
+"maker": "MITSUBISHI",
+"model": "350MSG-40",
+"ton": "350T"
+},
+{
+"no": "AR23",
+"section": "Moulding 2",
+"maker": "MITSUBISHI",
+"model": "350MSG-40",
+"ton": "350T"
+},
+{
+"no": "AR24",
+"section": "Moulding 2",
+"maker": "JSW",
+"model": "J350 EIII",
+"ton": "350T"
+},
+{
+"no": "AR25",
+"section": "Moulding 2",
+"maker": "NISSEI",
+"model": "FS360100ASE",
+"ton": "360T"
+},
+{
+"no": "AR26",
+"section": "Moulding 2",
+"maker": "NISSEI",
+"model": "FN5000-50A",
+"ton": "220T"
+},
+{
+"no": "AR27",
+"section": "Moulding 2",
+"maker": "NISSEI",
+"model": "FN5000-50A",
+"ton": "220T"
+},
+{
+"no": "AR30",
+"section": "Moulding 2",
+"maker": "NISSEI",
+"model": "FN6000-71A",
+"ton": "280T"
+},
+{
+"no": "AR31",
+"section": "Moulding 2",
+"maker": "YAN HING",
+"model": "JS425",
+"ton": "425T"
+},
+{
+"no": "AR32",
+"section": "Moulding 2",
+"maker": "YAN HING",
+"model": "JS425",
+"ton": "425T"
+},
+{
+"no": "AR33",
+"section": "Moulding 2",
+"maker": "YAN HING",
+"model": "JS425",
+"ton": "425T"
+},
+{
+"no": "AR35",
+"section": "Moulding 2",
+"maker": "MITSUBISHI",
+"model": "FS360100ASE",
+"ton": "450T"
+},
+{
+"no": "AR36",
+"section": "Moulding 2",
+"maker": "",
+"model": "",
+"ton": "75T"
+},
+{
+"no": "AR38",
+"section": "Moulding 2",
+"maker": "DEMAG",
+"model": "Ergotech 250-840 dragon",
+"ton": "250T"
+},
+{
+"no": "CR02",
+"section": "Moulding 2",
+"maker": "ARBURG",
+"model": "270 C 400-100",
+"ton": "40T"
+},
+{
+"no": "CR03",
+"section": "Moulding 2",
+"maker": "ARBURG",
+"model": "320 C 600-250U",
+"ton": "60T"
+},
+{
+"no": "CR06",
+"section": "Moulding 2",
+"maker": "ARBURG",
+"model": "420 C 1000-250",
+"ton": "100T"
+},
+{
+"no": "CR12",
+"section": "Moulding 2",
+"maker": "JSW",
+"model": "J150 E-II",
+"ton": "150T"
+},
+{
+"no": "CR13",
+"section": "Moulding 2",
+"maker": "MITSUBISHI",
+"model": "240MSV15",
+"ton": "240T"
+},
+{
+"no": "CR14",
+"section": "Moulding 2",
+"maker": "JSW",
+"model": "J220E-II",
+"ton": "220T"
+},
+{
+"no": "CR16",
+"section": "Moulding 2",
+"maker": "ARBURG",
+"model": "630 S 2500-1300",
+"ton": "250T"
+},
+{
+"no": "BR01",
+"section": "Moulding 1",
+"maker": "",
+"model": "",
+"ton": "220T"
+},
+{
+"no": "BR02",
+"section": "Moulding 1",
+"maker": "",
+"model": "",
+"ton": "240T"
+},
+{
+"no": "BR03",
+"section": "Moulding 1",
+"maker": "",
+"model": "",
+"ton": "350T"
+},
+{
+"no": "BR04",
+"section": "Moulding 1",
+"maker": "",
+"model": "",
+"ton": "425T"
+},
+{
+"no": "BR05",
+"section": "Moulding 1",
+"maker": "",
+"model": "",
+"ton": "150T"
+},
+{
+"no": "BR06",
+"section": "Moulding 1",
+"maker": "",
+"model": "",
+"ton": "120T"
+},
+{
+"no": "BR07",
+"section": "Moulding 1",
+"maker": "",
+"model": "",
+"ton": "120T"
+},
+{
+"no": "BR08 (VMM-1)",
+"section": "Moulding 1",
+"maker": "",
+"model": "",
+"ton": "200T"
+},
+{
+"no": "BR09 (2K)",
+"section": "Moulding 1",
+"maker": "",
+"model": "",
+"ton": "160T"
+},
+{
+"no": "BR10",
+"section": "Moulding 1",
+"maker": "",
+"model": "",
+"ton": "120T"
+},
+{
+"no": "BR11",
+"section": "Moulding 1",
+"maker": "DEMAG",
+"model": "Ergotech concept 150-610",
+"ton": "150T"
+},
+{
+"no": "BR12 (VMM-2)",
+"section": "Moulding 1",
+"maker": "",
+"model": "",
+"ton": "200T"
+},
+{
+"no": "CR07",
+"section": "CR Room",
+"maker": "",
+"model": "",
+"ton": "Funac 100T"
+},
+{
+"no": "CR17",
+"section": "CR Room",
+"maker": "FANUC",
+"model": "S-2001100A",
+"ton": "Funac 100T"
+},
+{
+"no": "CR19",
+"section": "CR Room",
+"maker": "DEMAG",
+"model": "Ergotech extra 1000/420-31",
+"ton": "100T"
+},
+{
+"no": "CR20",
+"section": "CR Room",
+"maker": "DEMAG",
+"model": "Ergotech extra 100-430",
+"ton": "100T"
+},
+{
+"no": "CR21",
+"section": "CR Room",
+"maker": "NISSEI",
+"model": "PN60-9A",
+"ton": "60T"
+}
+]
