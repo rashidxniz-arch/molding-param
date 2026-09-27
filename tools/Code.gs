@@ -2,20 +2,27 @@
  * Exzone Molding Parameter — team data backend (Google Apps Script)
  *
  * Keeps the trials the team enters in the app (values, ticks, sign-offs) in this Google Sheet.
- * Photos are NOT handled here: technicians post them in Teams → NPI 2026 → Molding Trials.
+ * Photo reading: the app sends each machine-screen photo here; this script saves it in the Drive
+ * folder "Molding Parameter – photos" and asks Claude (Anthropic API) to read the values.
+ * The API key stays in this script's properties – it never reaches the phones or GitHub.
  * When a trial is approved, this script writes a small Google Doc into the Drive folder
  * "Molding Parameter – for Claude" so Rashid's Claude can make the EXZONE PDF on "Run now".
  *
  * SETUP (once):
  *  1. Change TEAM_CODE below to the team passcode used in the app.
- *  2. Click Save, choose "setup" in the function menu and click Run. Allow access when asked.
- *  3. Deploy → New deployment → type "Web app":  Execute as: Me   Who has access: Anyone
+ *  2. Project Settings (gear icon) → Script Properties → Add script property:
+ *       ANTHROPIC_API_KEY = your key from console.anthropic.com (starts with sk-ant-)
+ *  3. Click Save, choose "setup" in the function menu and click Run. Allow access when asked.
+ *  4. Deploy → New deployment → type "Web app":  Execute as: Me   Who has access: Anyone
  *     Copy the Web app URL and send it to Claude.
  *  If you change this code later: Deploy → Manage deployments → Edit → Version: New version.
  */
 
 const TEAM_CODE = 'CHANGE-ME'; // set the passcode here (never stored in GitHub)
 const CLAUDE_FOLDER = 'Molding Parameter – for Claude';
+const PHOTO_FOLDER = 'Molding Parameter – photos';
+const AI_MODEL = 'claude-sonnet-5';   // Anthropic model used to read the photos
+const AI_DAILY_LIMIT = 300;           // safety cap: photo readings per day for the whole team
 
 /* ---------------- setup ---------------- */
 function setup() {
@@ -25,14 +32,16 @@ function setup() {
   ensure_('Trials', ['id', 'code', 'status', 'machine', 'mould', 'rev', 'updatedAt', 'json']);
   ensure_('Log', ['at', 'who', 'trial', 'what']);
   folder_();
-  Logger.log('Setup OK');
+  photoFolder_();
+  Logger.log(aiKey_() ? 'Setup OK – photo reading is ON' : 'Setup OK – photo reading is OFF (add ANTHROPIC_API_KEY in Project Settings → Script Properties)');
 }
 
 /* ---------------- web app ---------------- */
 function doGet(e) {
   const p = (e && e.parameter) || {};
   if (p.code !== TEAM_CODE) return out_({ ok: false, error: 'bad_code' });
-  return out_({ ok: true, trials: all_().filter(t => !t.deleted), at: stamp_() });
+  if (p.op === 'photo') return out_(photo_(String(p.id || '')));
+  return out_({ ok: true, trials: all_().filter(t => !t.deleted), at: stamp_(), ai: !!aiKey_() });
 }
 
 function doPost(e) {
@@ -40,6 +49,7 @@ function doPost(e) {
   try { b = JSON.parse(e.postData.contents); } catch (err) { return out_({ ok: false, error: 'bad_request' }); }
   if (!b || b.code !== TEAM_CODE) return out_({ ok: false, error: 'bad_code' });
   const who = clean_(b.who, 40);
+  if (b.op === 'read') return out_(read_(b, who));
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -141,7 +151,7 @@ function check_(lines) {
 }
 function writeClaudeDoc_(t) {
   const copy = JSON.parse(JSON.stringify(t));
-  delete copy.log;
+  delete copy.log; delete copy.reads; delete copy.unmatched;
   const lines = flatten_(copy, '', []);
   const text = ['MPA-TRIAL v1'].concat(lines, ['CHECK=' + check_(lines), 'END']).join('\n');
   const doc = DocumentApp.create('MPA ' + t.id + ' Rev ' + t.rev + ' ' + t.code);
@@ -150,6 +160,125 @@ function writeClaudeDoc_(t) {
   const file = DriveApp.getFileById(doc.getId());
   folder_().addFile(file);
   DriveApp.getRootFolder().removeFile(file);
+}
+
+/* ---------------- photo reading (Anthropic API) ---------------- */
+function aiKey_() { return PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY') || ''; }
+function photoFolder_() {
+  const it = DriveApp.getFoldersByName(PHOTO_FOLDER);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(PHOTO_FOLDER);
+}
+function photo_(id) {
+  if (!/^[A-Za-z0-9_-]{10,}$/.test(id)) return { ok: false, error: 'bad id' };
+  const f = DriveApp.getFileById(id);
+  const parents = f.getParents();
+  if (!parents.hasNext() || parents.next().getId() !== photoFolder_().getId()) return { ok: false, error: 'not a trial photo' };
+  return { ok: true, type: f.getMimeType(), data: Utilities.base64Encode(f.getBlob().getBytes()) };
+}
+function countToday_() {
+  const pr = PropertiesService.getScriptProperties(), k = 'reads-' + Utilities.formatDate(new Date(), 'Asia/Kuala_Lumpur', 'yyyyMMdd');
+  const n = Number(pr.getProperty(k) || 0) + 1;
+  pr.setProperty(k, String(n));
+  return n;
+}
+const READ_RULES = [
+  'You read photos of injection moulding machine control screens (HMI) for the EXZONE Standard Moulding Parameter form.',
+  'Reply with ONE JSON object only, no other text:',
+  '{"screen":"<screen id from the guide, or unknown>","seen":"<page title / what the photo shows>","ok":true,',
+  ' "values":{"<field key>":{"value":"240.0","confidence":"high","why":""}},',
+  ' "actuals":{"<field key>":"231.2"},"other":[{"label":"","value":"","unit":""}],"warnings":["..."]}',
+  'Rules:',
+  '- First decide which screen of the guide the photo shows (page title and layout). The technician expected the screen given as EXPECTED; if the photo clearly shows another screen of the guide, use that screen id and add a warning. If it matches none, screen "unknown" and ok false.',
+  '- Read only the field keys listed for that screen. Copy each number exactly as displayed, keeping the decimals shown ("240.0", "0.10"). Numbers as strings. Do not convert units.',
+  '- If a field is not visible or cannot be read with certainty, leave it out. Never guess. A clearly displayed 0 or 0.0 is a real value.',
+  '- confidence "high" only when the digits are sharp and the mapping to the field is certain; otherwise "low" with a short reason in "why".',
+  '- actuals: only for the keys the guide asks actual values for.',
+  '- other: up to 10 other clearly readable settings not in the field list.',
+  '- warnings: short notes for the technician, e.g. glare, cut-off, blurred, wrong page, alarm shown. Empty list if none.'
+].join('\n');
+function read_(b, who) {
+  const key = aiKey_();
+  if (!key) return { ok: false, error: 'Photo reading is switched off (no API key in the Google script)' };
+  if (countToday_() > AI_DAILY_LIMIT) return { ok: false, error: 'Daily photo-reading limit reached (' + AI_DAILY_LIMIT + ') – type the values or try tomorrow' };
+  const img = String(b.image || '');
+  if (!img || img.length > 6e6) return { ok: false, error: 'Photo missing or too large' };
+  const type = /^image\/(jpeg|png|webp)$/.test(b.mediaType) ? b.mediaType : 'image/jpeg';
+  let t = get_(clean_(b.id, 40));
+  if (!t || t.deleted) return { ok: false, error: 'Trial not found' };
+  if (t.status !== 'Draft') return { ok: false, error: 'Photos can only be added while the trial is a Draft' };
+  const expect = clean_(b.screen, 30) || 'any';
+  const guide = String(b.guide || '').slice(0, 40000);
+
+  // 1. keep the photo (evidence) in Drive
+  const now = stamp_();
+  const file = photoFolder_().createFile(Utilities.newBlob(Utilities.base64Decode(img), type,
+    (t.code || t.id) + ' ' + expect + ' ' + now.replace(/[:T]/g, '') + '.jpg'));
+
+  // 2. ask Claude to read it
+  let res, raw = '';
+  try {
+    const r = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+      method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      payload: JSON.stringify({
+        model: AI_MODEL, max_tokens: 2000, system: READ_RULES,
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: type, data: img } },
+          { type: 'text', text: 'MACHINE BRAND: ' + clean_(t.brand, 20) + '\nEXPECTED SCREEN: ' + expect + '\n\nREADING GUIDE:\n' + guide }
+        ] }]
+      })
+    });
+    raw = r.getContentText();
+    const j = JSON.parse(raw);
+    if (r.getResponseCode() !== 200) throw new Error((j.error && j.error.message) || ('HTTP ' + r.getResponseCode()));
+    const text = (j.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
+    const m = text.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('No reading returned');
+    res = JSON.parse(m[0]);
+  } catch (err) {
+    return { ok: false, error: 'Reading failed: ' + String(err && err.message || err).slice(0, 200), photo: file.getId() };
+  }
+
+  // 3. store the reading on the trial (values not yet ticked get the new reading)
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    t = get_(t.id);
+    if (!t || t.status !== 'Draft') return { ok: false, error: 'The trial changed status while reading' };
+    const allowed = b.fields && typeof b.fields === 'object' ? b.fields : {};
+    let screen = clean_(res.screen, 30);
+    if (screen === 'unknown' || res.ok === false) screen = 'unknown';
+    else if (!allowed[screen]) screen = expect !== 'any' && allowed[expect] ? expect : 'unknown';
+    const ks = allowed[screen] || [], vals = {}, act = {};
+    Object.keys(res.values || {}).forEach(k => {
+      const x = res.values[k], v = clean_(x && typeof x === 'object' ? x.value : x, 60);
+      if (ks.indexOf(k) < 0 || v === '') return;
+      vals[k] = { value: v, confidence: x && x.confidence === 'high' ? 'high' : 'low', why: clean_(x && x.why, 120) };
+    });
+    Object.keys(res.actuals || {}).forEach(k => { if (ks.indexOf(k) >= 0) act[k] = clean_(res.actuals[k], 20); });
+    const rec = {
+      at: now, by: who, photo: file.getId(), model: AI_MODEL, seen: clean_(res.seen, 120), ok: res.ok !== false && screen !== 'unknown',
+      values: vals, actuals: act,
+      other: (Array.isArray(res.other) ? res.other : []).slice(0, 10).map(o => ({ label: clean_(o && o.label, 60), value: clean_(o && o.value, 30), unit: clean_(o && o.unit, 12) })),
+      warnings: (Array.isArray(res.warnings) ? res.warnings : []).slice(0, 6).map(w => clean_(w, 160))
+    };
+    if (expect !== 'any' && screen !== expect) rec.warnings.unshift(screen === 'unknown' ? 'This photo does not look like the expected screen' : 'Photo shows another screen – filed under ' + screen);
+    t.reads = t.reads || {};
+    if (screen === 'unknown') { t.unmatched = (t.unmatched || []).concat([rec]).slice(-10); }
+    else {
+      t.reads[screen] = rec;
+      Object.keys(vals).forEach(k => {
+        const cur = t.values[k];
+        if (!cur || !cur.ok) t.values[k] = { v: vals[k].value, ok: false, src: 'ai', conf: vals[k].confidence, why: vals[k].why };
+      });
+      Object.keys(act).forEach(k => { t.actuals[k] = act[k]; });
+    }
+    t.log.push({ at: now, who: who, what: 'Photo read: ' + (screen === 'unknown' ? 'unrecognised' : screen) + ' (' + Object.keys(vals).length + ' values)' });
+    save_(t);
+    return { ok: true, trial: t, screen: screen, read: rec };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /* ---------------- storage ---------------- */

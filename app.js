@@ -1,12 +1,13 @@
 /* EXZONE Molding Parameter – team PWA
  * Trials, typed values and sign-offs live in a private Google Sheet (via the Google Apps Script).
- * Technicians post the machine-screen photos in Teams (NPI 2026 → Molding Trials) with the trial code.
- * When Rashid presses "Run now", his Claude reads the photos, makes the approved PDFs and publishes
- * them here encrypted with the team passcode (data/results.enc.json, data/photos, data/pdf).
+ * Technicians take the machine-screen photos in the app: the Google script saves each photo in Drive and
+ * has Claude (Anthropic API) read the values straight back to the phone.
+ * When Rashid presses "Run now", his Claude makes the approved EXZONE PDFs and publishes them here
+ * encrypted with the team passcode (data/results.enc.json, data/pdf).
  */
 'use strict';
 const SCRIPT_URL = (window.MPA_CONFIG && window.MPA_CONFIG.scriptUrl) || '';
-let META = null, RESULTS = { trials: {}, pdfs: {}, orphans: [] }, TRIALS = [], T = null, FILTER = 'All', Q = '';
+let AI_ON = null, META = null, RESULTS = { trials: {}, pdfs: {}, orphans: [] }, TRIALS = [], T = null, FILTER = 'All', Q = '';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ls = { get(k, d = '') { try { return localStorage.getItem(k) ?? d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} }, del(k) { try { localStorage.removeItem(k); } catch {} } };
@@ -49,7 +50,7 @@ async function spost(payload) {
 }
 async function reload() {
   const [tr, res] = await Promise.all([sget(), loadEncJson('data/results.enc.json', CODE).catch(() => ({}))]);
-  TRIALS = tr.trials; RESULTS = { trials: {}, pdfs: {}, orphans: [], ...res };
+  TRIALS = tr.trials; AI_ON = tr.ai; RESULTS = { trials: {}, pdfs: {}, orphans: [], ...res };
   if (T) T = TRIALS.find(x => x.id === T.id) || null;
   chip();
 }
@@ -68,7 +69,11 @@ function fieldDef(k, t) {
   for (const g of META.header) { const f = g.fields.find(x => x.k === k); if (f) return { ...f, section: g.title }; }
   return { k, label: k, unit: '' };
 }
-const readsOf = t => RESULTS.trials[String(t.code || '').toUpperCase()] || { screens: {}, unmatched: [] };
+// Photo readings: new ones are stored on the trial (t.reads); older ones came from Teams via Run now
+function readsOf(t) {
+  const old = RESULTS.trials[String(t.code || '').toUpperCase()] || { screens: {}, unmatched: [] };
+  return { screens: { ...old.screens, ...(t.reads || {}) }, unmatched: [...(old.unmatched || []), ...(t.unmatched || [])] };
+}
 const readingFor = (t, sc) => readsOf(t).screens[sc] || null;
 // Values as shown: what the team saved, plus Claude's readings (purple) where nothing is saved yet
 function view(t) {
@@ -153,9 +158,9 @@ function renderUnlock(err) {
 }
 function chip() {
   const c = $('#aiChip');
-  c.className = 'chip ai';
-  c.textContent = RESULTS.updatedAt ? 'Read ' + fmtDT(RESULTS.updatedAt) : 'Not read yet';
-  c.title = 'Last time Claude read the photos (Run now)';
+  c.className = 'chip ai' + (AI_ON ? '' : ' off');
+  c.textContent = AI_ON ? 'AI reading' : 'AI off';
+  c.title = AI_ON ? 'Photos are read by Claude as soon as you take them' : 'No API key in the Google script – type the values by hand';
 }
 
 // ---------------------------------------------------------------- home
@@ -164,21 +169,19 @@ function renderHome() {
   const rows = TRIALS.filter(t => (FILTER === 'All' || t.status === FILTER) && (!q || [t.machine.no, t.brand, sv(t, 'mould_code'), sv(t, 'part_no'), sv(t, 'part_name'), sv(t, 'customer'), t.trialNo].join(' ').toLowerCase().includes(q)))
     .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
   const count = s => TRIALS.filter(t => s === 'All' || t.status === s).length;
-  const waitN = TRIALS.filter(t => t.status === 'Draft' && !readCount(t)).length;
-  const orphans = (RESULTS.orphans || []).length;
   const pdfN = TRIALS.filter(t => t.status === 'Approved' && !(RESULTS.pdfs[t.id] && RESULTS.pdfs[t.id].rev === t.rev)).length;
   $('#app').innerHTML = `
     <section class="hero">
       <img src="brand/npi-logo-full.png" alt="New Gen NPI – Innovate, Collaborate, Deliver">
       <div>
         <h1>Molding <span>Parameter</span></h1>
-        <div class="tag">Trial code <i>→</i> photos in Teams <i>→</i> Claude reads <i>→</i> check <i>→</i> EXZONE PDF</div>
-        <p>Create the trial, post the machine-screen photos in Teams with its code, and Claude reads them when Rashid presses <b>Run now</b>. You check the values and sign off.</p>
+        <div class="tag">New trial <i>→</i> photo each screen <i>→</i> Claude reads <i>→</i> check <i>→</i> EXZONE PDF</div>
+        <p>Create the trial and take a photo of each machine screen in the app. Claude reads the values in a few seconds – you check them against the photo, tick, and sign off.</p>
         <div class="row" style="justify-content:inherit"><a class="btn primary" href="#/new">＋ New trial</a><button class="btn" id="refresh">↻ Refresh</button></div>
       </div>
     </section>
-    ${waitN || pdfN ? `<div class="banner wait"><span>⏳</span><div><b class="h">${[waitN ? `${waitN} draft trial(s) with no photos read yet` : '', pdfN ? `${pdfN} approved PDF(s) to make` : ''].filter(Boolean).join(' · ')}</b>After posting the photos in Teams: Rashid opens his Claude app → scheduled task “Molding Parameter – read photos” → <b>Run now</b>. Then press Refresh here.</div></div>` : ''}
-    ${orphans ? `<details class="banner"><summary><b>${orphans} photo(s) in Teams without a trial code</b> – repost them with the code</summary>${RESULTS.orphans.slice().reverse().map(o => `<div class="small">${esc(fmtDT(o.postedAt || o.at))} · ${esc(o.postedBy)} · ${esc(o.seen || 'unknown screen')}${o.msg ? ` · <a href="${esc(o.msg)}" target="_blank" rel="noopener">open post</a>` : ''}</div>`).join('')}</details>` : ''}
+    ${pdfN ? `<div class="banner wait"><span>⏳</span><div><b class="h">${pdfN} approved PDF(s) to make</b>Rashid: open the Claude app → scheduled task “Molding Parameter – read photos” → <b>Run now</b>. Then press Refresh here.</div></div>` : ''}
+    ${AI_ON === false ? `<div class="banner"><span>ℹ</span><div><b class="h">Photo reading is off</b>Photos are saved, but the values must be typed by hand until the API key is added to the Google script.</div></div>` : ''}
     <input type="search" id="q" placeholder="Search machine, mould code, part no…" value="${esc(Q)}">
     <div class="filters">${['All', 'Draft', 'Review', 'Approved', 'Superseded'].map(s => `<button data-f="${s}" class="${FILTER === s ? 'on' : ''}">${s} (${count(s)})</button>`).join('')}</div>
     <div class="list">${rows.map(t => {
@@ -340,45 +343,82 @@ function screenState(id) {
   return `<span class="state ${cls}" data-scstate="${id}">${txt}</span>`;
 }
 const PHOTO_CACHE = {};
+// Older photos: encrypted files in this site (data/photos/...). New photos: in Google Drive, fetched through the script.
+const imgTag = (ref, alt) => `<img data-ph="${esc(ref)}" alt="${esc(alt)}">`;
 async function loadPhotos(root) {
-  for (const img of root.querySelectorAll('img[data-enc]')) {
-    const f = img.dataset.enc;
+  for (const img of root.querySelectorAll('img[data-ph]')) {
+    const f = img.dataset.ph;
     try {
-      if (!PHOTO_CACHE[f]) PHOTO_CACHE[f] = fetchEnc(f).then(e => decryptBytes(e, CODE)).then(b => URL.createObjectURL(new Blob([b], { type: 'image/jpeg' })));
+      if (!PHOTO_CACHE[f]) PHOTO_CACHE[f] = f.startsWith('data/')
+        ? fetchEnc(f).then(e => decryptBytes(e, CODE)).then(b => URL.createObjectURL(new Blob([b], { type: 'image/jpeg' })))
+        : sget({ op: 'photo', id: f }).then(j => URL.createObjectURL(new Blob([b64(j.data)], { type: j.type || 'image/jpeg' })));
       img.src = await PHOTO_CACHE[f];
     } catch { delete PHOTO_CACHE[f]; img.alt = 'Photo could not be loaded'; }
   }
 }
-function teamsCard() {
-  const tm = META.teams || {};
+// ----- taking and reading photos
+const BUSY = {};   // screen id (or 'any') -> number of photos being read
+function photoCard() {
+  const n = Object.values(BUSY).reduce((a, b) => a + b, 0);
   return `<div class="card postcard">
-    <h2>Post the photos in Teams</h2>
+    <h2>Photos of the machine screens</h2>
     <ol class="small steps">
-      <li>Open Teams → <b>${esc(tm.team || 'NPI 2026')}</b> → <b>${esc(tm.channel || 'Molding Trials')}</b> → <b>Start a post</b>.</li>
-      <li>Type the trial code <b class="code">${esc(T.code)}</b> <button class="btn small" id="copyCode">Copy</button></li>
-      <li>Attach one photo per machine screen (straight on, page title in the frame) and post. Missed a screen? Reply to the same post with more photos.</li>
-      <li>Ask Rashid to press <b>Run now</b>, then tap <b>Refresh</b> here.</li>
+      <li>Open each page on the machine screen. Hold the phone straight, whole page in the frame, no glare.</li>
+      <li>Tap <b>📷 Photo</b> on that screen below${AI_ON ? ' – Claude reads it in a few seconds' : ''}. Or take several photos first and add them all at once.</li>
+      <li>Check each purple value against the photo and tick ✓. Correct anything that is wrong.</li>
     </ol>
-    <div class="row">${tm.link ? `<a class="btn primary" href="${esc(tm.link)}" target="_blank" rel="noopener">Open ${esc(tm.channel || 'Molding Trials')} in Teams</a>` : ''}<button class="btn" id="refreshT">↻ Refresh</button></div>
+    <div class="row"><label class="btn primary">📷 Add photos (any screen)<input type="file" accept="image/*" multiple hidden data-shoot="any"></label>
+      ${n ? `<span class="small muted"><span class="spin"></span> Reading ${n} photo(s)…</span>` : ''}</div>
   </div>`;
+}
+async function shrink(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error('Not a photo')); i.src = url; });
+    const k = Math.min(1, 1568 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.85).split(',')[1];
+  } finally { URL.revokeObjectURL(url); }
+}
+function guideFor(brand) {
+  const p = META.profiles[brand], lab = {};
+  for (const s of p.sections) for (const f of s.fields) lab[f.k] = f.label + (f.unit ? ' [' + f.unit + ']' : '');
+  return `${brand} (${p.form})\n` + p.screens.map(sc => `### screen "${sc.id}" – ${sc.title} (page title: ${sc.page})\n${sc.read || sc.hint}\nFields (key: meaning):\n` +
+    sc.fields.map(k => `- ${k}: ${lab[k] || k}`).join('\n') + (sc.actuals && sc.actuals.length ? `\nAlso report ACTUAL values under "actuals" for: ${sc.actuals.join(', ')}` : '')).join('\n\n');
+}
+async function readPhoto(file, screen) {
+  const trial = T, p = prof(trial);
+  BUSY[screen] = (BUSY[screen] || 0) + 1; if (T === trial) keepScroll(tabPhotos);
+  try {
+    const image = await shrink(file);
+    const j = await spost({ op: 'read', id: trial.id, screen, image, mediaType: 'image/jpeg', guide: guideFor(trial.brand),
+      fields: Object.fromEntries(p.screens.map(sc => [sc.id, sc.fields])) });
+    const sc = p.screens.find(s => s.id === j.screen);
+    const n = Object.keys(j.read.values || {}).length;
+    toast(sc ? `${sc.title}: ${n} value(s) read${j.read.warnings.length ? ' – see note' : ''}` : 'Photo not recognised as a screen of this form', !sc);
+  } catch (e) { toast(e.message, true); }
+  finally { BUSY[screen]--; if (location.hash.includes("/photos") && T && T.id === trial.id) { keepScroll(tabPhotos); refreshTabs(); } }
 }
 function tabPhotos() {
   const p = prof(), rs = readsOf(T);
   $('#tab').innerHTML = `
-    ${editable() ? teamsCard() : ''}
-    ${rs.unmatched && rs.unmatched.length ? `<div class="card"><h2>Other photos in this trial's post</h2><div class="small muted">Claude could not match these to a screen of the form.</div>
-      ${rs.unmatched.map(u => `<div class="row" style="margin-top:8px;align-items:flex-start">${u.photo ? `<div class="shot" style="width:160px;aspect-ratio:4/3" data-view="1"><img data-enc="${esc(u.photo)}" alt="photo"></div>` : ''}<div class="small">${esc(u.seen || 'Unknown screen')}${u.warnings && u.warnings.length ? '<br>' + u.warnings.map(esc).join('<br>') : ''}</div></div>`).join('')}</div>` : ''}
+    ${editable() ? photoCard() : ''}
+    ${rs.unmatched && rs.unmatched.length ? `<div class="card"><h2>Other photos</h2><div class="small muted">Claude could not match these to a screen of the form.</div>
+      ${rs.unmatched.map(u => `<div class="row" style="margin-top:8px;align-items:flex-start">${u.photo ? `<div class="shot" style="width:160px;aspect-ratio:4/3" data-view="1">${imgTag(u.photo, 'photo')}</div>` : ''}<div class="small">${esc(u.seen || 'Unknown screen')}${u.warnings && u.warnings.length ? '<br>' + u.warnings.map(esc).join('<br>') : ''}</div></div>`).join('')}</div>` : ''}
     ${p.screens.map(sc => {
       const rd = readingFor(T, sc.id), { vals } = view(T);
       const un = sc.fields.filter(k => vals[k] && vals[k].v !== '' && !vals[k].ok);
       return `<div class="card" id="sc_${sc.id}">
         <div class="sectionh"><div><h3>${esc(sc.title)}</h3><div class="small muted">${esc(sc.hint)}</div></div>${screenState(sc.id)}</div>
         ${rd && rd.warnings && rd.warnings.length ? `<div class="note ai">Claude: ${rd.warnings.map(esc).join(' · ')}</div>` : ''}
+        ${rd && rd.ok !== false && editable() && !Object.keys(rd.values || {}).length ? `<div class="note ai">Claude could not read any value on this photo – retake it (straight, no glare) or type the values.</div>` : ''}
         <div class="screen">
           <div class="leftcol">
-            ${rd && rd.photo ? `<div class="shot" data-view="1"><img data-enc="${esc(rd.photo)}" alt="${esc(sc.title)} photo"></div>
-              <div class="controls"><div class="small muted" style="margin-top:4px">Posted ${fmtDT(rd.postedAt)}${rd.postedBy ? ' · ' + esc(rd.postedBy) : ''} · read by Claude ${fmtDT(rd.at)}${rd.msg ? ` · <a href="${esc(rd.msg)}" target="_blank" rel="noopener">post</a>` : ''}</div>`
-              : `<div class="shot empty">${editable() ? 'No photo read yet<br>' + esc(sc.page) : 'No photo in this revision'}</div><div class="controls">`}
+            ${rd && rd.photo ? `<div class="shot" data-view="1">${imgTag(rd.photo, sc.title + ' photo')}</div>
+              <div class="controls"><div class="small muted" style="margin-top:4px">${rd.postedAt ? 'Posted ' + fmtDT(rd.postedAt) + (rd.postedBy ? ' · ' + esc(rd.postedBy) : '') + ' · read ' + fmtDT(rd.at) : 'Taken ' + fmtDT(rd.at) + (rd.by ? ' by ' + esc(rd.by) : '') + ' · read by Claude'}</div>`
+              : `<div class="shot empty">${editable() ? 'No photo yet<br>' + esc(sc.page) : 'No photo in this revision'}</div><div class="controls">`}
+            ${editable() ? `<div class="row" style="margin-top:6px">${BUSY[sc.id] ? '<span class="small muted"><span class="spin"></span> Reading…</span>' : `<label class="btn small ${rd && rd.photo ? '' : 'primary'}">📷 ${rd && rd.photo ? 'Retake' : 'Photo'}<input type="file" accept="image/*" hidden data-shoot="${sc.id}"></label>`}</div>` : ''}
             ${rd && rd.other && rd.other.length ? `<details class="small" style="margin-top:6px"><summary class="muted">Other settings Claude saw (${rd.other.length})</summary>${rd.other.map(o => `${esc(o.label)}: <b>${esc(o.value)}</b> ${esc(o.unit || '')}`).join('<br>')}</details>` : ''}
           </div></div>
           <div class="fields">
@@ -390,8 +430,10 @@ function tabPhotos() {
     }).join('')}`;
   bindRows($('#tab'));
   loadPhotos($('#tab'));
-  $('#copyCode') && ($('#copyCode').onclick = async () => { try { await navigator.clipboard.writeText(T.code); toast('Code copied'); } catch { toast(T.code); } });
-  $('#refreshT') && ($('#refreshT').onclick = async () => { try { await reload(); keepScroll(tabPhotos); toast(readCount(T) ? `${readCount(T)} screen(s) read` : 'No photos read yet – Run now needed'); } catch (e) { toast(e.message, true); } });
+  document.querySelectorAll('[data-shoot]').forEach(inp => (inp.onchange = () => {
+    const files = [...inp.files]; inp.value = '';
+    files.forEach((f, i) => setTimeout(() => readPhoto(f, inp.dataset.shoot), i * 400));
+  }));
   document.querySelectorAll('[data-view]').forEach(d => (d.onclick = () => openViewer(d)));
   document.querySelectorAll('[data-tickall]').forEach(b => (b.onclick = async () => {
     const sc = prof().screens.find(s => s.id === b.dataset.tickall), { vals } = view(T);

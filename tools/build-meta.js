@@ -7,7 +7,7 @@ const version = require('./package.json').version;
 const profiles = Object.fromEntries(Object.entries(PROFILES).map(([b, p]) => [b, {
   brand: b, form: p.form, title: p.title,
   sections: p.sections.map(s => ({ id: s.id, title: s.title, fields: s.fields.map(({ k, label, unit, tol, note, cell }) => ({ k, label, unit, tol, note, onForm: !!cell })) })),
-  screens: p.screens.map(({ id, title, page, hint, fields }) => ({ id, title, page, hint, fields })),
+  screens: p.screens.map(({ id, title, page, hint, read, fields, actuals }) => ({ id, title, page, hint, read, fields, actuals: actuals || [] })),
 }]));
 const out = process.argv[2] || 'meta.json';
 const teams = require('./teams.json');

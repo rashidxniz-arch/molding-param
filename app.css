@@ -128,3 +128,5 @@ table.t th{color:var(--muted);font-weight:600;font-size:12px}
 details.banner{display:block}details.banner summary{cursor:pointer}
 .top .chip{max-width:38vw;overflow:hidden;text-overflow:ellipsis}
 .list .item > div:last-child{max-width:50%}
+.small .spin,.row .spin{display:inline-block;width:12px;height:12px;border-width:2px;margin:0 6px -2px 0;vertical-align:baseline}
+label.btn{cursor:pointer}
